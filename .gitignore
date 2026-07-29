@@ -1,0 +1,18 @@
+# IDE Configuration Files
+.vscode/
+.idea/
+*.suo
+*.user
+
+# OS-generated files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Compiled Java code (if any)
+*.class
+*.jar
+*.war
+*.ear
+bin/
+out/
