@@ -1,6 +1,6 @@
 # 🔐 Secure Steganography & Cryptography Suite
 
-[![Netlify Status](https://api.netlify.com/api/v1/badges/222d6402-f3f9-4d6d-965a-0639e31d4590/deploy-status)](https://crypto-stego.netlify.netlify.app/)
+[![Netlify Status](https://api.netlify.com/api/v1/badges/222d6402-f3f9-4d6d-965a-0639e31d4590/deploy-status)](https://crypto-stego.netlify.app/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Language](https://img.shields.io/badge/Language-HTML%2FCSS%2FJS-orange?logo=javascript)](https://developer.mozilla.org/en-US/docs/Web/JavaScript)
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-Netlify-blueviolet?logo=netlify)](https://crypto-stego.netlify.app/)
@@ -89,8 +89,11 @@ No complex dependencies or compilers required. Because this suite uses client-si
 
 ---
 
-## 🔮 Future Roadmap
+## 🔮 Feature Roadmap & Status
 
-* [ ] **AI-Assisted Steganalysis:** Run real-time pixel-distribution checks to find if an image is hiding data.
-* [ ] **IPFS Integration:** Store watermarked images on decentralized nodes for verified timestamping.
-* [ ] **Zero-Knowledge Proof (ZKP) Login:** Allow secure, passwordless authentication using the Web Crypto API.
+* [x] **LSB Image Steganography:** Embed and decode encrypted payloads inside image pixels using HTML5 canvas.
+* [x] **RSA Cryptographic Suite:** Asymmetric keypair generation and step-by-step math visualization.
+* [x] **Digital Watermarking:** Overlay ownership metadata for copyright protection and tamper verification.
+* [x] **Web Crypto API Engine:** Hardware-accelerated client-side AES-GCM and SHA-256 cryptographic primitives.
+* [ ] **AI-Assisted Steganalysis:** Pixel distribution histogram checks to detect hidden payloads.
+* [ ] **Frequency Domain (DWT/DCT) Steganography:** Frequency transform embedding for JPEG compression resistance.
