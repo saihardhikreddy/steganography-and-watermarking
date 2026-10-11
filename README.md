@@ -82,10 +82,21 @@ No complex dependencies or compilers required. Because this suite uses client-si
 1. Clone this repository:
    ```bash
    git clone https://github.com/saihardhikreddy/steganography-and-watermarking.git
+   cd steganography-and-watermarking
    ```
-2. Navigate to the project root and launch the main portal:
+2. **Launch the Web Interface:**
    - On Windows: Double-click `src/html/index.html` or open it with your browser.
    - Using VS Code: Right-click `index.html` and choose **Open with Live Server**.
+   - Using Python local server:
+     ```bash
+     python -m http.server 8080 --directory src/html
+     ```
+
+3. **Run the Java Desktop Core (Optional):**
+   ```bash
+   javac -d bin src/java/SecureStegoProject.java
+   java -cp bin SecureStegoProject
+   ```
 
 ---
 
