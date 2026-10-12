@@ -16,3 +16,10 @@ desktop.ini
 *.ear
 bin/
 out/
+
+# Node dependencies and logs
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+

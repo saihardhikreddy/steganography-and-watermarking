@@ -1,0 +1,19 @@
+{
+  "name": "crypto-stego-suite",
+  "version": "1.0.0",
+  "description": "Interactive Web Suite for Image Steganography, RSA Cryptography, and Watermarking",
+  "private": true,
+  "scripts": {
+    "serve": "npx serve src/html",
+    "serve:python": "python -m http.server 8080 --directory src/html"
+  },
+  "keywords": [
+    "steganography",
+    "cryptography",
+    "watermarking",
+    "rsa",
+    "webcrypto"
+  ],
+  "author": "Sai Hardhik Reddy",
+  "license": "MIT"
+}
