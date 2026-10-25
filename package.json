@@ -5,7 +5,8 @@
   "private": true,
   "scripts": {
     "serve": "npx serve src/html",
-    "serve:python": "python -m http.server 8080 --directory src/html"
+    "serve:python": "python -m http.server 8080 --directory src/html",
+    "verify": "python scripts/verify_suite.py"
   },
   "keywords": [
     "steganography",
