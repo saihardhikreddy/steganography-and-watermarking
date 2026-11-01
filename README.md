@@ -100,6 +100,20 @@ No complex dependencies or compilers required. Because this suite uses client-si
 
 ---
 
+## 🧪 Testing & Verification
+
+The suite includes an automated asset integrity and link verification test runner that validates all HTML modules, internal routing links, script references, and stylesheet paths:
+
+```bash
+# Using npm
+npm run verify
+
+# Or directly using Python
+python scripts/verify_suite.py
+```
+
+---
+
 ## 🔮 Feature Roadmap & Status
 
 * [x] **LSB Image Steganography:** Embed and decode encrypted payloads inside image pixels using HTML5 canvas.
