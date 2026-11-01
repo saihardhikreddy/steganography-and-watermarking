@@ -2,7 +2,7 @@
 Static Asset and Link Integrity Verifier for Secure Steganography Suite
 
 Ensures that all referenced HTML pages, CSS files, JavaScript assets,
-and Java backend entry points exist and are non-empty.
+internal routing links, and Java backend entry points exist and are non-empty.
 """
 
 from pathlib import Path
@@ -53,6 +53,21 @@ def verify_pages():
             if not css_path.is_file():
                 print(f"[!] In {page_name}: Broken stylesheet link -> {href}")
                 missing_assets.append(f"{page_name} -> {href}")
+
+        # Find internal page navigation anchors
+        nav_anchors = re.findall(r'<a\s+[^>]*href=["\']([^"\'#]+)["\']', content)
+        for target_href in nav_anchors:
+            if (
+                target_href.startswith("http://")
+                or target_href.startswith("https://")
+                or target_href.startswith("mailto:")
+                or target_href.startswith("javascript:")
+            ):
+                continue
+            nav_path = (HTML_DIR / target_href).resolve()
+            if not nav_path.is_file():
+                print(f"[!] In {page_name}: Broken navigation link -> {target_href}")
+                missing_assets.append(f"{page_name} -> {target_href}")
 
     # Check Java core
     java_file = REPO_ROOT / "src" / "java" / "SecureStegoProject.java"
