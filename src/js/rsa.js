@@ -43,8 +43,13 @@ const RSA = (() => {
     const bytes = Math.ceil(bits / 8);
     const arr = new Uint8Array(bytes);
     crypto.getRandomValues(arr);
-    // Set the top bit to ensure correct bit length
-    arr[0] |= 0x80;
+    // Clear any bits above `bits` when it isn't a multiple of 8
+    const extra = bytes * 8 - bits;
+    arr[0] &= 0xFF >> extra;
+    // Set the top two bits: the product of two such primes then has exactly
+    // twice as many bits, so a "2048-bit" key really has a 2048-bit modulus
+    const top = 0x80 >> extra;
+    arr[0] |= top | (top >> 1);
     // Set bottom bit to ensure odd
     arr[bytes - 1] |= 0x01;
     let n = 0n;
@@ -83,10 +88,14 @@ const RSA = (() => {
     return true;
   }
 
-  /** Generate a probable prime of `bits` length */
-  function generatePrime(bits) {
+  /**
+   * Generate a probable prime of `bits` length. With `e`, skip primes where
+   * p - 1 shares a factor with e, so e always has an inverse mod phi(n).
+   */
+  function generatePrime(bits, e = null) {
     while (true) {
       const candidate = randomBigInt(bits);
+      if (e !== null && (candidate - 1n) % e === 0n) continue;  // e is prime
       if (millerRabin(candidate, 20)) return candidate;
     }
   }
@@ -100,13 +109,13 @@ const RSA = (() => {
    */
   function generateKeyPair(bits = 2048) {
     const halfBits = Math.floor(bits / 2);
-    const p = generatePrime(halfBits);
+    const e = 65537n;
+    const p = generatePrime(halfBits, e);
     let q;
-    do { q = generatePrime(halfBits); } while (q === p);
+    do { q = generatePrime(halfBits, e); } while (q === p);
 
     const n = p * q;
     const phi = (p - 1n) * (q - 1n);
-    const e = 65537n;
     const d = modInverse(e, phi);
 
     return {
@@ -250,6 +259,7 @@ const RSA = (() => {
     parsePrivateKeyPEM,
     // exposed for testing
     modPow,
+    randomBigInt,
     millerRabin,
     generatePrime
   };
