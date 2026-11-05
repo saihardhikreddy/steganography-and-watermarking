@@ -133,11 +133,12 @@ const RSA = (() => {
     const bytes = encoder.encode(str);
     let hex = '';
     for (const b of bytes) hex += b.toString(16).padStart(2, '0');
-    return BigInt('0x' + hex);
+    return hex ? BigInt('0x' + hex) : 0n;   // BigInt('0x') throws for the empty string
   }
 
   /** Convert BigInt → string (via hex → UTF-8) */
   function bigIntToString(n) {
+    if (n === 0n) return '';                // the empty message, not a NUL character
     let hex = n.toString(16);
     if (hex.length % 2 !== 0) hex = '0' + hex;
     const bytes = new Uint8Array(hex.length / 2);

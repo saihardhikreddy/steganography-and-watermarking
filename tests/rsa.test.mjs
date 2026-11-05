@@ -37,7 +37,7 @@ test('primes avoid p = 1 mod e', () => {
 
 test('encrypt then decrypt round-trips UTF-8 text', () => {
   const { publicKey, privateKey } = RSA.generateKeyPair(512);
-  for (const msg of ['hello', 'नमस्ते 🔐', 'a'.repeat(40)]) {
+  for (const msg of ['', 'hello', 'नमस्ते 🔐', 'a'.repeat(40)]) {
     assert.equal(RSA.decrypt(RSA.encrypt(msg, publicKey), privateKey), msg);
   }
 });
