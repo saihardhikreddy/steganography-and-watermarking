@@ -47,3 +47,12 @@ test('PEM helpers round-trip keys', () => {
   assert.deepEqual({ ...RSA.parsePublicKeyPEM(RSA.formatPublicKeyPEM(publicKey)) }, { ...publicKey });
   assert.deepEqual({ ...RSA.parsePrivateKeyPEM(RSA.formatPrivateKeyPEM(privateKey)) }, { ...privateKey });
 });
+
+test('the pages load the same scripts that are tested here', () => {
+  // src/html/assets/ holds the copies the site actually serves.
+  for (const name of ['rsa', 'stego', 'storage', 'ui', 'webcrypto']) {
+    const tested = readFileSync(new URL(`../src/js/${name}.js`, import.meta.url), 'utf8');
+    const served = readFileSync(new URL(`../src/html/assets/${name}.js`, import.meta.url), 'utf8');
+    assert.equal(served, tested, `src/html/assets/${name}.js differs from src/js/${name}.js`);
+  }
+});
