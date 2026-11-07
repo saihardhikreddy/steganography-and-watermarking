@@ -55,6 +55,11 @@ const Stego = (() => {
       };
     }
 
+    // Make every pixel opaque. Browsers store canvas pixels with premultiplied alpha, so the
+    // colour of a semi-transparent pixel is rounded on putImageData and its LSBs, the message,
+    // come back changed. Transparent PNGs (logos, screenshots) lost their payload this way.
+    for (let i = 3; i < data.length; i += 4) data[i] = 255;
+
     let bitIdx = 0;
     for (let i = 0; i < data.length && bitIdx < fullStream.length; i++) {
       // Skip alpha channel (every 4th byte)
