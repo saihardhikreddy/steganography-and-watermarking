@@ -517,7 +517,9 @@ document.getElementById('wcFileDecBtn').addEventListener('click', async () => {
     const buffer = await currentFileToDec.arrayBuffer();
     const {result: decryptedBuffer, elapsed} = await WebCrypto.timed(() => WebCrypto.decryptFile(buffer, key));
     
-    const originalName = currentFileToDec.name.replace('.sec', '');
+    // Strip only the trailing .sec we added ("my.secrets.txt.sec" -> "my.secrets.txt").
+    const encName = currentFileToDec.name;
+    const originalName = encName.endsWith('.sec') ? encName.slice(0, -4) : encName + '.decrypted';
     const blob = new Blob([decryptedBuffer], { type: 'application/octet-stream' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
