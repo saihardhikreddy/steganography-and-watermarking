@@ -2,14 +2,11 @@
 
 const Stego = (() => {
 
-  // Magic header to detect valid stego data: "STG1" (4 bytes = 32 bits)
-  // "01010011 01010100 01000111 00110001"
-  const MAGIC_BITS = "01010011010101000100011100110001";
-
-  // Helper: Pad binary string to 32 bits
-  function numberToBinary32(num) {
-    return num.toString(2).padStart(32, '0');
-  }
+  // Magic header to detect valid stego data: "STG1" (4 bytes = 32 bits), then the payload
+  // length as a 32-bit big-endian number, then the payload. Bits go MSB first into the
+  // least significant bit of R, G and B of each pixel in turn (alpha is skipped).
+  const MAGIC = [0x53, 0x54, 0x47, 0x31];
+  const HEADER_BYTES = 8;
 
   /**
    * Calculate maximum string payload capacity in bytes.
@@ -20,6 +17,38 @@ const Stego = (() => {
     const totalBits = width * height * 3;
     const capacityBytes = Math.floor((totalBits - 64) / 8);
     return Math.max(0, capacityBytes);
+  }
+
+  // Index into RGBA data of the n-th usable (non-alpha) channel.
+  const channel = (n) => n + Math.floor(n / 3);
+
+  // The bytes are packed straight into the pixels. (This used to build a string of '0'/'1'
+  // characters first, one character per bit, and parse it back with parseInt.)
+  function writeBytes(data, bytes) {
+    let i = 0;
+    for (const byte of bytes) {
+      for (let b = 7; b >= 0; b--) {
+        if ((i & 3) === 3) i++;  // skip alpha
+        data[i] = (data[i] & 0xFE) | ((byte >> b) & 1);
+        i++;
+      }
+    }
+    return bytes.length * 8;
+  }
+
+  function readBytes(data, firstByte, count) {
+    const out = new Uint8Array(count);
+    let i = channel(firstByte * 8);
+    for (let k = 0; k < count; k++) {
+      let byte = 0;
+      for (let b = 0; b < 8; b++) {
+        if ((i & 3) === 3) i++;
+        byte = (byte << 1) | (data[i] & 1);
+        i++;
+      }
+      out[k] = byte;
+    }
+    return out;
   }
 
   /**
@@ -35,23 +64,18 @@ const Stego = (() => {
     const data = imageData.data;
 
     // Encode string to UTF-8 bytes to safely handle all characters
-    const encoder = new TextEncoder();
-    const bytes = encoder.encode(dataStr);
-    
-    // Construct full bitstream
-    let payloadBits = '';
-    for (let b of bytes) {
-      payloadBits += b.toString(2).padStart(8, '0');
-    }
+    const payload = new TextEncoder().encode(dataStr);
+    const stream = new Uint8Array(HEADER_BYTES + payload.length);
+    stream.set(MAGIC, 0);
+    new DataView(stream.buffer).setUint32(4, payload.length);
+    stream.set(payload, HEADER_BYTES);
 
-    const lengthBits = numberToBinary32(bytes.length);
-    const fullStream = MAGIC_BITS + lengthBits + payloadBits;
-
+    const neededBits = stream.length * 8;
     const maxCapacityBits = (data.length / 4) * 3;
-    if (fullStream.length > maxCapacityBits) {
-      return { 
-        ok: false, 
-        reason: `Payload too large. Needs ${fullStream.length} bits, but image only has ${maxCapacityBits} bits.` 
+    if (neededBits > maxCapacityBits) {
+      return {
+        ok: false,
+        reason: `Payload too large. Needs ${neededBits} bits, but image only has ${maxCapacityBits} bits.`
       };
     }
 
@@ -60,18 +84,9 @@ const Stego = (() => {
     // come back changed. Transparent PNGs (logos, screenshots) lost their payload this way.
     for (let i = 3; i < data.length; i += 4) data[i] = 255;
 
-    let bitIdx = 0;
-    for (let i = 0; i < data.length && bitIdx < fullStream.length; i++) {
-      // Skip alpha channel (every 4th byte)
-      if ((i + 1) % 4 === 0) continue;
-      
-      // Clear LSB and set to bitstream value
-      data[i] = (data[i] & 0xFE) | parseInt(fullStream[bitIdx], 10);
-      bitIdx++;
-    }
-
+    const bitsUsed = writeBytes(data, stream);
     ctx.putImageData(imageData, 0, 0);
-    return { ok: true, bitsUsed: bitIdx, capacityBytes: calculateCapacityBytes(img.width, img.height) };
+    return { ok: true, bitsUsed, capacityBytes: calculateCapacityBytes(img.width, img.height) };
   }
 
   /**
@@ -85,55 +100,23 @@ const Stego = (() => {
     const ctx = c.getContext('2d');
     ctx.drawImage(img, 0, 0);
     const data = ctx.getImageData(0, 0, c.width, c.height).data;
+    const maxCapacityBits = (data.length / 4) * 3;
 
-    let extractedBits = '';
-    
-    // Phase 1: Read the first 64 bits (Magic + Length)
-    for (let i = 0; i < data.length; i++) {
-      if ((i + 1) % 4 === 0) continue;
-      extractedBits += (data[i] & 1).toString();
-      if (extractedBits.length === 64) break;
-    }
-
-    if (extractedBits.length < 64) {
+    if (maxCapacityBits < HEADER_BYTES * 8) {
       throw new Error("Image is too small to contain valid steganography data.");
     }
 
-    const magic = extractedBits.substring(0, 32);
-    if (magic !== MAGIC_BITS) {
+    const header = readBytes(data, 0, HEADER_BYTES);
+    if (MAGIC.some((m, k) => header[k] !== m)) {
       throw new Error("No secure steganographic signature found in this image.");
     }
 
-    const lengthBits = extractedBits.substring(32, 64);
-    const dataLengthBytes = parseInt(lengthBits, 2);
-    const dataLengthBits = dataLengthBytes * 8;
-
-    // Phase 2: Extract the actual payload bits
-    const totalBitsNeeded = 64 + dataLengthBits;
-    const maxCapacityBits = (data.length / 4) * 3;
-    
-    if (totalBitsNeeded > maxCapacityBits) {
+    const dataLengthBytes = new DataView(header.buffer).getUint32(4);
+    if ((HEADER_BYTES + dataLengthBytes) * 8 > maxCapacityBits) {
       throw new Error(`Corrupted header: declares length ${dataLengthBytes} bytes, which exceeds image capacity.`);
     }
 
-    // Reset and read exactly what's needed
-    extractedBits = '';
-    for (let i = 0; i < data.length && extractedBits.length < totalBitsNeeded; i++) {
-      if ((i + 1) % 4 === 0) continue;
-      extractedBits += (data[i] & 1).toString();
-    }
-
-    const payloadBits = extractedBits.substring(64);
-    
-    // Convert bits back to UTF-8 bytes
-    const payloadBytes = new Uint8Array(dataLengthBytes);
-    for (let i = 0; i < dataLengthBytes; i++) {
-      const byteStr = payloadBits.substring(i * 8, i * 8 + 8);
-      payloadBytes[i] = parseInt(byteStr, 2);
-    }
-
-    const decoder = new TextDecoder();
-    return decoder.decode(payloadBytes);
+    return new TextDecoder().decode(readBytes(data, HEADER_BYTES, dataLengthBytes));
   }
 
   return { embedData, extractData, calculateCapacityBytes };

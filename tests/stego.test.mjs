@@ -59,3 +59,25 @@ test('too long a message is refused', () => {
   const r = Stego.embedData(canvas, image(4, 4, 255), 'x'.repeat(10));
   assert.equal(r.ok, false);
 });
+
+test('the bit layout stays readable by older versions', () => {
+  // MSB first through the LSBs of R, G, B (alpha skipped): "STG1", a 32-bit big-endian length,
+  // then the UTF-8 payload. Images made before the byte-level rewrite must still decode.
+  const { Stego, store, canvas } = load();
+  Stego.embedData(canvas, image(16, 16, 255), 'Hi');
+  const lsbs = [];
+  for (let i = 0; i < store.pixels.length && lsbs.length < 80; i++) {
+    if (i % 4 !== 3) lsbs.push(store.pixels[i] & 1);
+  }
+  const bytes = [];
+  for (let k = 0; k < 10; k++) bytes.push(parseInt(lsbs.slice(k * 8, k * 8 + 8).join(''), 2));
+  assert.deepEqual(bytes, [0x53, 0x54, 0x47, 0x31, 0, 0, 0, 2, 0x48, 0x69]);
+});
+
+test('a corrupted length is refused, not read past the image', () => {
+  const { Stego, store, canvas } = load();
+  Stego.embedData(canvas, image(8, 8, 255), 'ok');
+  for (let n = 32; n < 40; n++) store.pixels[n + Math.floor(n / 3)] |= 1;  // length's top byte -> 0xFF
+  assert.throws(() => Stego.extractData({ width: 8, height: 8, pixels: store.pixels }), /exceeds image capacity/);
+  assert.throws(() => Stego.extractData({ width: 2, height: 2, pixels: new Uint8ClampedArray(16) }), /too small/);
+});
