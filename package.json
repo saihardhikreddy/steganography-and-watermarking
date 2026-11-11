@@ -7,7 +7,7 @@
     "serve": "npx serve src/html",
     "serve:python": "python -m http.server 8080 --directory src/html",
     "verify": "python scripts/verify_suite.py",
-    "test": "node --test tests/rsa.test.mjs tests/stego.test.mjs tests/webcrypto.test.mjs tests/storage.test.mjs"
+    "test": "node --test tests/rsa.test.mjs tests/stego.test.mjs tests/webcrypto.test.mjs tests/storage.test.mjs tests/watermark.test.mjs"
   },
   "keywords": [
     "steganography",

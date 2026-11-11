@@ -50,7 +50,7 @@ test('PEM helpers round-trip keys', () => {
 
 test('the pages load the same scripts that are tested here', () => {
   // src/html/assets/ holds the copies the site actually serves.
-  for (const name of ['rsa', 'stego', 'storage', 'ui', 'webcrypto']) {
+  for (const name of ['rsa', 'stego', 'storage', 'ui', 'watermark', 'webcrypto']) {
     const tested = readFileSync(new URL(`../src/js/${name}.js`, import.meta.url), 'utf8');
     const served = readFileSync(new URL(`../src/html/assets/${name}.js`, import.meta.url), 'utf8');
     assert.equal(served, tested, `src/html/assets/${name}.js differs from src/js/${name}.js`);

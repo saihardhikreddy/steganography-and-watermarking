@@ -83,8 +83,10 @@
   </footer>
 
 <script src="assets/ui.js"></script>
+<script src="assets/watermark.js"></script>
 <script>
 let wmImg=null;
+let wmUrl=null; // the last download link, released when a new one replaces it
 
 UI.setupDragDrop('wmDropZone', 'wmImage', (file) => {
   document.getElementById('wmFileName').textContent = file.name;
@@ -105,15 +107,11 @@ document.getElementById('applyWm').addEventListener('click', ()=>{
   const c=document.getElementById('wmCanvas'); const ctx=c.getContext('2d'); ctx.clearRect(0,0,c.width,c.height); ctx.drawImage(wmImg,0,0);
   ctx.font = `${size}px Inter, Arial`; ctx.textBaseline='bottom';
   // apply chosen color with opacity
-  const rgb = hexToRgb(color) || {r:255,g:255,b:255}; ctx.fillStyle = `rgba(${rgb.r},${rgb.g},${rgb.b},${op})`;
-  const w = ctx.measureText(text).width; let x=12, y=c.height-12;
-  switch(pos){ case 'bottom-right': x=c.width-w-12; y=c.height-12; break; case 'bottom-left': x=12; y=c.height-12; break; case 'top-right': x=c.width-w-12; y=size+12; break; case 'top-left': x=12; y=size+12; break; case 'center': x=(c.width-w)/2; y=c.height/2 + size/2; break;}
+  const rgb = Watermark.hexToRgb(color) || {r:255,g:255,b:255}; ctx.fillStyle = `rgba(${rgb.r},${rgb.g},${rgb.b},${op})`;
+  const { x, y } = Watermark.position(pos, c.width, c.height, ctx.measureText(text).width, size);
   if(text) ctx.fillText(text, x, y);
-  c.toBlob((b)=>{ const url=URL.createObjectURL(b); const a=document.getElementById('wmDownload'); a.href=url; a.style.display='inline-flex'; a.download='watermarked.png'; UI.showToast('Watermark applied', 'success'); }, 'image/png');
+  c.toBlob((b)=>{ if(wmUrl) URL.revokeObjectURL(wmUrl); wmUrl=URL.createObjectURL(b); const a=document.getElementById('wmDownload'); a.href=wmUrl; a.style.display='inline-flex'; a.download='watermarked.png'; UI.showToast('Watermark applied', 'success'); }, 'image/png');
 });
-
-// helper
-function hexToRgb(hex) { if(!hex) return null; const parsed = hex.replace('#',''); if(parsed.length===3){ return {r:parseInt(parsed[0]+parsed[0],16), g:parseInt(parsed[1]+parsed[1],16), b:parseInt(parsed[2]+parsed[2],16)} } if(parsed.length===6){ return {r:parseInt(parsed.slice(0,2),16), g:parseInt(parsed.slice(2,4),16), b:parseInt(parsed.slice(4,6),16)} } return null; }
 </script>
 </body>
 </html>
