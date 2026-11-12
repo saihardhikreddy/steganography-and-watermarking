@@ -56,3 +56,18 @@ test('the pages load the same scripts that are tested here', () => {
     assert.equal(served, tested, `src/html/assets/${name}.js differs from src/js/${name}.js`);
   }
 });
+
+test('pasting the wrong kind of key gives a clear message', () => {
+  const { publicKey, privateKey } = RSA.generateKeyPair(512);
+  const pub = RSA.formatPublicKeyPEM(publicKey);
+  const priv = RSA.formatPrivateKeyPEM(privateKey);
+  assert.throws(() => RSA.parsePublicKeyPEM(priv), /private key; paste the public key here/);
+  assert.throws(() => RSA.parsePrivateKeyPEM(pub), /public key; paste the private key here/);
+  assert.throws(() => RSA.parsePublicKeyPEM('hello there'), /Not a valid RSA public key/);
+  // Well-formed but missing a value, e.g. hand-edited.
+  const noD = `-----BEGIN RSA PRIVATE KEY-----\n${btoa(JSON.stringify({ n: '35' }))}\n-----END RSA PRIVATE KEY-----`;
+  assert.throws(() => RSA.parsePrivateKeyPEM(noD), /missing its "d" value/);
+  // The bare base64 body still works, and only the key's own fields come back.
+  const body = btoa(JSON.stringify({ ...publicKey, extra: 'x' }));
+  assert.deepEqual({ ...RSA.parsePublicKeyPEM(body) }, { ...publicKey });
+});

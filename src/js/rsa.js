@@ -233,18 +233,41 @@ const RSA = (() => {
     return `-----BEGIN RSA PRIVATE KEY-----\n${lines.join('\n')}\n-----END RSA PRIVATE KEY-----`;
   }
 
+  // Reads a key written by formatPublicKeyPEM / formatPrivateKeyPEM, with a clear message
+  // when the wrong one is pasted. Before, a private key in the public-key box failed with
+  // atob's "string not correctly encoded", and a public key in the private-key box with
+  // "Cannot convert undefined to a BigInt".
+  function parseKeyPEM(pem, kind, fields) {
+    const text = String(pem || '').trim();
+    const other = kind === 'PUBLIC' ? 'PRIVATE' : 'PUBLIC';
+    if (text.includes(`-----BEGIN RSA ${other} KEY-----`)) {
+      throw new Error(`This is an RSA ${other.toLowerCase()} key; paste the ${kind.toLowerCase()} key here`);
+    }
+    const b64 = text.replace(`-----BEGIN RSA ${kind} KEY-----`, '')
+                    .replace(`-----END RSA ${kind} KEY-----`, '')
+                    .replace(/\s/g, '');
+    let key;
+    try {
+      key = JSON.parse(atob(b64));
+    } catch {
+      throw new Error(`Not a valid RSA ${kind.toLowerCase()} key (expected the text between the BEGIN and END lines)`);
+    }
+    for (const f of fields) {
+      if (typeof key?.[f] !== 'string' || !/^\d+$/.test(key[f])) {
+        throw new Error(`RSA ${kind.toLowerCase()} key is missing its "${f}" value`);
+      }
+    }
+    const out = {};
+    for (const f of fields) out[f] = key[f];
+    return out;
+  }
+
   function parsePublicKeyPEM(pem) {
-    const b64 = pem.replace(/-----BEGIN RSA PUBLIC KEY-----/, '')
-                   .replace(/-----END RSA PUBLIC KEY-----/, '')
-                   .replace(/\s/g, '');
-    return JSON.parse(atob(b64));
+    return parseKeyPEM(pem, 'PUBLIC', ['n', 'e']);
   }
 
   function parsePrivateKeyPEM(pem) {
-    const b64 = pem.replace(/-----BEGIN RSA PRIVATE KEY-----/, '')
-                   .replace(/-----END RSA PRIVATE KEY-----/, '')
-                   .replace(/\s/g, '');
-    return JSON.parse(atob(b64));
+    return parseKeyPEM(pem, 'PRIVATE', ['n', 'd']);
   }
 
   // ─── Public API ───
