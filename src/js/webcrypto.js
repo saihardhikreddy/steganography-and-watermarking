@@ -82,22 +82,50 @@ const WebCrypto = (() => {
   }
 
   /**
+   * The DER bytes inside a PEM key, or an Error that says what was pasted instead.
+   * A swapped key, a key from the educational RSA tab or stray text used to fail inside atob()
+   * with "Invalid character", which told the user nothing.
+   * @param {string} pem
+   * @param {'PUBLIC'|'PRIVATE'} kind
+   */
+  function pemToBuffer(pem, kind) {
+    const text = String(pem || '').trim();
+    const want = kind.toLowerCase();
+    const other = kind === 'PUBLIC' ? 'PRIVATE' : 'PUBLIC';
+    if (!text) throw new Error(`Paste a ${want} key first`);
+    if (text.includes(`-----BEGIN ${other} KEY-----`)) {
+      throw new Error(`This is a ${other.toLowerCase()} key; paste the ${want} key here`);
+    }
+    if (/-----BEGIN RSA (PUBLIC|PRIVATE) KEY-----/.test(text)) {
+      throw new Error('This key comes from the educational RSA tool and does not work with Web Crypto; '
+        + `paste a Web Crypto ${want} key (BEGIN ${kind} KEY)`);
+    }
+    const b64 = text.replace(`-----BEGIN ${kind} KEY-----`, '')
+                    .replace(`-----END ${kind} KEY-----`, '')
+                    .replace(/\s/g, '');
+    try {
+      return b642ab(b64);
+    } catch {
+      throw new Error(`Not a valid ${want} key (expected the text between the BEGIN and END lines)`);
+    }
+  }
+
+  async function importKeyPEM(pem, kind, format, usages) {
+    const buffer = pemToBuffer(pem, kind);
+    try {
+      return await subtle.importKey(format, buffer, { name: 'RSA-OAEP', hash: 'SHA-256' }, true, usages);
+    } catch {
+      throw new Error(`Not a valid RSA ${kind.toLowerCase()} key (it may be cut short or altered)`);
+    }
+  }
+
+  /**
    * Import an RSA public key from PEM (SPKI format).
    * @param {string} pem
    * @returns {Promise<CryptoKey>}
    */
   async function importPublicKeyPEM(pem) {
-    const b64 = pem
-      .replace(/-----BEGIN PUBLIC KEY-----/, '')
-      .replace(/-----END PUBLIC KEY-----/, '')
-      .replace(/\s/g, '');
-    const buffer = b642ab(b64);
-    return subtle.importKey(
-      'spki', buffer,
-      { name: 'RSA-OAEP', hash: 'SHA-256' },
-      true,
-      ['encrypt']
-    );
+    return importKeyPEM(pem, 'PUBLIC', 'spki', ['encrypt']);
   }
 
   /**
@@ -106,17 +134,7 @@ const WebCrypto = (() => {
    * @returns {Promise<CryptoKey>}
    */
   async function importPrivateKeyPEM(pem) {
-    const b64 = pem
-      .replace(/-----BEGIN PRIVATE KEY-----/, '')
-      .replace(/-----END PRIVATE KEY-----/, '')
-      .replace(/\s/g, '');
-    const buffer = b642ab(b64);
-    return subtle.importKey(
-      'pkcs8', buffer,
-      { name: 'RSA-OAEP', hash: 'SHA-256' },
-      true,
-      ['decrypt']
-    );
+    return importKeyPEM(pem, 'PRIVATE', 'pkcs8', ['decrypt']);
   }
 
   // ═══════════════════════════════════════════════════════════════════════

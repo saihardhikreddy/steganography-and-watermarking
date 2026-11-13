@@ -51,3 +51,17 @@ test('sha256 matches the standard test vector', async () => {
   assert.equal(await WebCrypto.sha256('abc'),
     'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad');
 });
+
+test('pasting the wrong key says which key was expected', async () => {
+  const pub = await WebCrypto.exportPublicKeyPEM(rsa.publicKey);
+  const priv = await WebCrypto.exportPrivateKeyPEM(rsa.privateKey);
+  await assert.rejects(WebCrypto.importPublicKeyPEM(priv), /private key; paste the public key here/);
+  await assert.rejects(WebCrypto.importPrivateKeyPEM(pub), /public key; paste the private key here/);
+  await assert.rejects(WebCrypto.importPublicKeyPEM('  '), /Paste a public key first/);
+  await assert.rejects(WebCrypto.importPublicKeyPEM('-----BEGIN RSA PUBLIC KEY-----\nAAAA\n-----END RSA PUBLIC KEY-----'),
+    /educational RSA tool/);
+  await assert.rejects(WebCrypto.importPrivateKeyPEM('not a key!'), /Not a valid private key/);
+  // Valid base64 that isn't a key, or a key cut short
+  await assert.rejects(WebCrypto.importPublicKeyPEM(pub.slice(0, 200) + '\n-----END PUBLIC KEY-----'),
+    /Not a valid RSA public key/);
+});
