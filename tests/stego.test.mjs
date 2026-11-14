@@ -81,3 +81,12 @@ test('a corrupted length is refused, not read past the image', () => {
   assert.throws(() => Stego.extractData({ width: 8, height: 8, pixels: store.pixels }), /exceeds image capacity/);
   assert.throws(() => Stego.extractData({ width: 2, height: 2, pixels: new Uint8ClampedArray(16) }), /too small/);
 });
+
+test('a damaged payload is reported, not decoded into garbage', () => {
+  const { Stego, store, canvas } = load();
+  Stego.embedData(canvas, image(16, 16, 255), 'héllo');
+  // Flip the top bit of the first payload byte ('h' = 0x68 -> 0xE8, a lone UTF-8 lead byte).
+  const bit = 64;  // payload starts after the 8-byte header
+  store.pixels[bit + Math.floor(bit / 3)] ^= 1;
+  assert.throws(() => Stego.extractData({ width: 16, height: 16, pixels: store.pixels }), /hidden data is damaged/);
+});

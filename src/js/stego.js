@@ -116,7 +116,14 @@ const Stego = (() => {
       throw new Error(`Corrupted header: declares length ${dataLengthBytes} bytes, which exceeds image capacity.`);
     }
 
-    return new TextDecoder().decode(readBytes(data, HEADER_BYTES, dataLengthBytes));
+    // Decode strictly: the default decoder swaps bytes that aren't valid UTF-8 for "\uFFFD"
+    // without a word, so a payload damaged after embedding (an edited or re-compressed image
+    // whose header happened to survive) came out as plausible-looking garbage.
+    try {
+      return new TextDecoder('utf-8', { fatal: true }).decode(readBytes(data, HEADER_BYTES, dataLengthBytes));
+    } catch (e) {
+      throw new Error("The hidden data is damaged: it isn't valid text. The image may have been edited, resized or re-saved after the message was embedded.");
+    }
   }
 
   return { embedData, extractData, calculateCapacityBytes };
