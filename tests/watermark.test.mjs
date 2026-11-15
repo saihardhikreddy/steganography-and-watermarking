@@ -34,3 +34,16 @@ test('hex colours', () => {
   assert.deepEqual({ ...Watermark.hexToRgb('ABCDEF') }, { r: 171, g: 205, b: 239 });
   for (const bad of ['', null, '#12', '#zzzzzz', '#1234567']) assert.equal(Watermark.hexToRgb(bad), null, String(bad));
 });
+
+test('a line too wide for the image is shrunk to fit between the margins', () => {
+  assert.equal(Watermark.fitSize('48', 300, 640), 48);          // fits: unchanged
+  assert.equal(Watermark.fitSize('48', 1232, 640), 24);          // 48 x 616 / 1232
+  assert.equal(Watermark.fitSize(48, 5000, 20), 1);               // never below 1 px
+  assert.equal(Watermark.fitSize('', 100, 640), 0);               // no size: left alone
+  // the shrunk line, measured again, fits and stays on the canvas in every position
+  const size = Watermark.fitSize(48, 1232, 640), tw = 1232 * size / 48;
+  for (const pos of ['bottom-right', 'bottom-left', 'top-right', 'top-left', 'center']) {
+    const { x } = Watermark.position(pos, 640, 480, tw, size);
+    assert.ok(x >= 0 && x + tw <= 640, `${pos}: x=${x}`);
+  }
+});

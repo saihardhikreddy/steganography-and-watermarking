@@ -108,7 +108,10 @@ document.getElementById('applyWm').addEventListener('click', ()=>{
   ctx.font = `${size}px Inter, Arial`; ctx.textBaseline='bottom';
   // apply chosen color with opacity
   const rgb = Watermark.hexToRgb(color) || {r:255,g:255,b:255}; ctx.fillStyle = `rgba(${rgb.r},${rgb.g},${rgb.b},${op})`;
-  const { x, y } = Watermark.position(pos, c.width, c.height, ctx.measureText(text).width, size);
+  // Shrink a line too wide for the image so it stays on it.
+  const fitted = Watermark.fitSize(size, ctx.measureText(text).width, c.width);
+  ctx.font = `${fitted}px Inter, Arial`;
+  const { x, y } = Watermark.position(pos, c.width, c.height, ctx.measureText(text).width, fitted);
   if(text) ctx.fillText(text, x, y);
   c.toBlob((b)=>{ if(wmUrl) URL.revokeObjectURL(wmUrl); wmUrl=URL.createObjectURL(b); const a=document.getElementById('wmDownload'); a.href=wmUrl; a.style.display='inline-flex'; a.download='watermarked.png'; UI.showToast('Watermark applied', 'success'); }, 'image/png');
 });

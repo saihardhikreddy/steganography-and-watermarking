@@ -26,5 +26,16 @@ const Watermark = (() => {
     return { r: parseInt(h.slice(0, 2), 16), g: parseInt(h.slice(2, 4), 16), b: parseInt(h.slice(4, 6), 16) };
   }
 
-  return { position, hexToRgb };
+  // Font size that keeps a line of text within the canvas width. Text width grows in proportion
+  // to the font size, so a line measured at `size` that is too wide is scaled down to fit
+  // between the margins (never below 1 px). Without this, a long watermark on a small image ran
+  // off both edges for 'center' and started at a negative x for the right-hand positions.
+  function fitSize(size, textW, canvasW) {
+    const s = Number(size) || 0;
+    const room = canvasW - 2 * MARGIN;
+    if (s <= 0 || textW <= 0 || textW <= room) return s;
+    return Math.max(1, Math.floor(s * Math.max(room, 0) / textW));
+  }
+
+  return { position, hexToRgb, fitSize };
 })();
