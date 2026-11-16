@@ -71,3 +71,25 @@ test('pasting the wrong kind of key gives a clear message', () => {
   const body = btoa(JSON.stringify({ ...publicKey, extra: 'x' }));
   assert.deepEqual({ ...RSA.parsePublicKeyPEM(body) }, { ...publicKey });
 });
+
+test('trial division rejects exactly the numbers with a small odd prime factor', () => {
+  const isPrime = (n) => { for (let p = 2n; p * p <= n; p++) if (n % p === 0n) return false; return n > 1n; };
+  for (let n = 3n; n < 30000n; n += 2n) {
+    // a small prime itself, or a number with no factor below 2000, passes on to Miller-Rabin
+    const expected = !isPrime(n) && [...Array(1000).keys()].some((k) => {
+      const p = BigInt(2 * k + 3);
+      return p < 2000n && n % p === 0n;
+    });
+    assert.equal(RSA.hasSmallFactor(n), expected, String(n));
+  }
+  assert.equal(RSA.hasSmallFactor(1999n), false);           // the largest prime in the table
+  assert.equal(RSA.hasSmallFactor(1999n * 2003n), true);
+  assert.equal(RSA.hasSmallFactor(2003n * 2011n), false);   // both factors past the table
+});
+
+test('generated primes are still prime', () => {
+  for (let i = 0; i < 20; i++) {
+    const p = RSA.generatePrime(24);
+    for (let d = 2n; d * d <= p; d++) assert.notEqual(p % d, 0n, `${p} divisible by ${d}`);
+  }
+});

@@ -96,8 +96,31 @@ const RSA = (() => {
     while (true) {
       const candidate = randomBigInt(bits);
       if (e !== null && (candidate - 1n) % e === 0n) continue;  // e is prime
+      if (hasSmallFactor(candidate)) continue;
       if (millerRabin(candidate, 20)) return candidate;
     }
+  }
+
+  /** The odd primes below 2000, for cheap trial division before Miller-Rabin. */
+  const SMALL_PRIMES = (() => {
+    const out = [];
+    for (let n = 3; n < 2000; n += 2) {
+      if (out.every((p) => p * p > n || n % p !== 0)) out.push(n);
+    }
+    return out.map(BigInt);
+  })();
+
+  /**
+   * True when n has an odd prime factor below 2000 (other than being that prime). About nine
+   * in ten random odd candidates do; a remainder check is far cheaper than Miller-Rabin's
+   * first big modPow, so a 2048-bit key pair is generated several times faster.
+   */
+  function hasSmallFactor(n) {
+    for (const p of SMALL_PRIMES) {
+      if (n === p) return false;
+      if (n % p === 0n) return true;
+    }
+    return false;
   }
 
   // ─── Key Generation ───
@@ -285,7 +308,8 @@ const RSA = (() => {
     modPow,
     randomBigInt,
     millerRabin,
-    generatePrime
+    generatePrime,
+    hasSmallFactor
   };
 
 })();
