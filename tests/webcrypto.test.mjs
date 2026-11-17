@@ -65,3 +65,23 @@ test('pasting the wrong key says which key was expected', async () => {
   await assert.rejects(WebCrypto.importPublicKeyPEM(pub.slice(0, 200) + '\n-----END PUBLIC KEY-----'),
     /Not a valid RSA public key/);
 });
+
+test('RSA and hybrid failures say what went wrong', async () => {
+  const other = await WebCrypto.generateRSAKeyPair(2048);
+  await assert.rejects(WebCrypto.rsaEncrypt('x'.repeat(191), rsa.publicKey),
+    /at most 190 bytes .* this message is 191; use Hybrid/);
+  assert.ok(await WebCrypto.rsaEncrypt('x'.repeat(190), rsa.publicKey));  // the exact limit still works
+
+  const cipher = await WebCrypto.rsaEncrypt('hi', rsa.publicKey);
+  await assert.rejects(WebCrypto.rsaDecrypt(cipher, other.privateKey), /Wrong private key/);
+  await assert.rejects(WebCrypto.rsaDecrypt('not base64!', rsa.privateKey), /not valid Base64/);
+
+  const pkg = await WebCrypto.hybridEncrypt('meet at dawn', rsa.publicKey);
+  await assert.rejects(WebCrypto.hybridDecrypt(pkg, other.privateKey), /Wrong private key/);
+  const bytes = Uint8Array.from(atob(pkg.ciphertext), c => c.charCodeAt(0));
+  bytes[0] ^= 1;
+  const altered = { ...pkg, ciphertext: btoa(String.fromCharCode(...bytes)) };
+  await assert.rejects(WebCrypto.hybridDecrypt(altered, rsa.privateKey), /message was changed/);
+  await assert.rejects(WebCrypto.hybridDecrypt({ ...pkg, iv: undefined }, rsa.privateKey), /iv is missing/);
+  await assert.rejects(WebCrypto.hybridDecrypt('text', rsa.privateKey), /Not a hybrid package/);
+});

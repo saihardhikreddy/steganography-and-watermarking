@@ -149,6 +149,13 @@ const WebCrypto = (() => {
    */
   async function rsaEncrypt(plaintext, publicKey) {
     const encoded = new TextEncoder().encode(plaintext);
+    // OAEP with SHA-256 leaves k - 2*32 - 2 bytes for the message (190 for a 2048-bit key).
+    // Past that, Web Crypto only says "OperationError", often with an empty message.
+    const max = publicKey.algorithm.modulusLength / 8 - 66;
+    if (encoded.length > max) {
+      throw new Error(`RSA-OAEP fits at most ${max} bytes with this key and this message is ${encoded.length}; `
+        + 'use Hybrid encryption for longer messages');
+    }
     const encrypted = await subtle.encrypt(
       { name: 'RSA-OAEP' },
       publicKey,
@@ -164,13 +171,28 @@ const WebCrypto = (() => {
    * @returns {Promise<string>} plaintext
    */
   async function rsaDecrypt(ciphertextB64, privateKey) {
-    const buffer = b642ab(ciphertextB64);
-    const decrypted = await subtle.decrypt(
-      { name: 'RSA-OAEP' },
-      privateKey,
-      buffer
-    );
+    const buffer = base64Field(ciphertextB64, 'The ciphertext');
+    let decrypted;
+    try {
+      decrypted = await subtle.decrypt({ name: 'RSA-OAEP' }, privateKey, buffer);
+    } catch {
+      throw new Error(WRONG_KEY);
+    }
     return new TextDecoder().decode(decrypted);
+  }
+
+  // Web Crypto reports a wrong key, a changed ciphertext and a cut-short one all as a bare
+  // "OperationError" (an empty message in Chrome), which left "Decryption failed — " on screen.
+  const WRONG_KEY = 'Wrong private key, or the ciphertext was changed or cut short';
+
+  /** Base64 text as an ArrayBuffer, or an Error naming the field that isn't Base64. */
+  function base64Field(value, what) {
+    if (typeof value !== 'string' || !value.trim()) throw new Error(`${what} is missing`);
+    try {
+      return b642ab(value.replace(/\s/g, ''));
+    } catch {
+      throw new Error(`${what} is not valid Base64`);
+    }
   }
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -298,19 +320,29 @@ const WebCrypto = (() => {
    * @returns {Promise<string>} plaintext
    */
   async function hybridDecrypt(payload, rsaPrivateKey) {
+    if (!payload || typeof payload !== 'object') throw new Error('Not a hybrid package (expected the JSON from Hybrid encrypt)');
     // 1) Decrypt the AES key with RSA-OAEP
-    const encKeyBuffer = b642ab(payload.encryptedKey);
-    const rawAESKey = await subtle.decrypt(
-      { name: 'RSA-OAEP' },
-      rsaPrivateKey,
-      encKeyBuffer
-    );
+    const encKeyBuffer = base64Field(payload.encryptedKey, 'The package\'s encryptedKey');
+    const cipherBuffer = base64Field(payload.ciphertext, 'The package\'s ciphertext');
+    const iv = new Uint8Array(base64Field(payload.iv, 'The package\'s iv'));
+    let rawAESKey;
+    try {
+      rawAESKey = await subtle.decrypt({ name: 'RSA-OAEP' }, rsaPrivateKey, encKeyBuffer);
+    } catch {
+      throw new Error('Wrong private key, or the package\'s encryptedKey was changed');
+    }
 
     // 2) Import the raw AES key
     const aesKey = await importAESKey(rawAESKey);
 
-    // 3) Decrypt the message with AES-GCM
-    return aesDecrypt(payload.ciphertext, payload.iv, aesKey);
+    // 3) Decrypt the message with AES-GCM, which also checks it wasn't altered
+    let decrypted;
+    try {
+      decrypted = await subtle.decrypt({ name: 'AES-GCM', iv }, aesKey, cipherBuffer);
+    } catch {
+      throw new Error('The message was changed or cut short (its AES-GCM tag does not match)');
+    }
+    return new TextDecoder().decode(decrypted);
   }
 
   // ═══════════════════════════════════════════════════════════════════════
