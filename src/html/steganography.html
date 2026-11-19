@@ -224,6 +224,19 @@
 // ─── State ───
 let generatedKeys = null;
 let encImageObj = null;
+let encImageInfo = '';
+
+// Hide the previous result: its download link still held the last stego PNG, so after a
+// failed embed or a new upload, "Download" handed out an image with the old message in it.
+function resetEncOutput() {
+  const a = document.getElementById('encDownload');
+  if (a.href.startsWith('blob:')) URL.revokeObjectURL(a.href);
+  a.removeAttribute('href');
+  a.style.display = 'none';
+  document.getElementById('encCipherContainer').style.display = 'none';
+  document.getElementById('encCipherOutput').textContent = '';
+  document.getElementById('encMeta').innerHTML = encImageInfo;
+}
 
 // ─── Tab Switching ───
 const tabNames = ['Keys', 'Encrypt', 'Decode'];
@@ -354,8 +367,8 @@ UI.setupDragDrop('encDropZone', 'encImage', (file) => {
     c.width = img.width; c.height = img.height;
     c.getContext('2d').drawImage(img, 0, 0);
     const capacity = Stego.calculateCapacityBytes(img.width, img.height);
-    document.getElementById('encMeta').innerHTML = 
-        `Image: ${img.width}×${img.height} — max capacity: ~<strong>${UI.formatBytes(capacity)}</strong>`;
+    encImageInfo = `Image: ${img.width}×${img.height} — max capacity: ~<strong>${UI.formatBytes(capacity)}</strong>`;
+    resetEncOutput();
   };
   img.src = URL.createObjectURL(file);
 });
@@ -368,6 +381,7 @@ document.getElementById('embedBtn').addEventListener('click', () => {
   if (!text) { alert('Enter a secret message to hide'); return; }
   if (!pubPEM) { alert('Provide an RSA public key (generate one in Step 1 or paste one)'); return; }
 
+  resetEncOutput();
   UI.showToast('Encrypting with RSA + embedding...', 'info');
 
   setTimeout(() => {
@@ -408,7 +422,7 @@ document.getElementById('embedBtn').addEventListener('click', () => {
         canv.style.transformOrigin = 'top left';
       } catch (e) {}
 
-      document.getElementById('encMeta').innerHTML += '<br><span style="color:var(--success)">✅ Data embedded successfully (' + r.bitsUsed + ' bits)</span>';
+      document.getElementById('encMeta').innerHTML = encImageInfo + '<br><span style="color:var(--success)">✅ Data embedded successfully (' + r.bitsUsed + ' bits)</span>';
     } catch (err) {
       alert('Encryption failed: ' + err.message);
       UI.showToast('Encryption error: ' + err.message, 'error');
@@ -431,11 +445,9 @@ document.getElementById('clearEnc').addEventListener('click', () => {
   document.getElementById('encText').value = '';
   document.getElementById('encPubKey').value = '';
   document.getElementById('encImage').value = '';
-  document.getElementById('encMeta').textContent = '';
-  document.getElementById('encCipherContainer').style.display = 'none';
-  document.getElementById('encCipherOutput').textContent = '';
-  document.getElementById('encDownload').style.display = 'none';
   encImageObj = null;
+  encImageInfo = '';
+  resetEncOutput();
   const c = document.getElementById('encCanvas');
   c.getContext('2d').clearRect(0, 0, c.width, c.height);
   UI.showToast('Cleared', 'info', 1500);
