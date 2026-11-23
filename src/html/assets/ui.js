@@ -70,7 +70,10 @@ const UI = (() => {
     const k = 1024;
     const dm = decimals < 0 ? 0 : decimals;
     const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    // Clamp the unit index: a size past 1 TB used to print "1234 undefined" (i past the array),
+    // and a negative size gave NaN. Use the magnitude so the largest named unit is TB.
+    const raw = Math.floor(Math.log(Math.abs(bytes)) / Math.log(k));
+    const i = Math.min(Math.max(raw, 0), sizes.length - 1);
     return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
   }
 
