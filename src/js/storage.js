@@ -30,14 +30,23 @@ const KeyVault = (() => {
     }
   }
 
-  /** Returns true if the keys were stored. */
+  /** Returns true if the keys were stored.
+   * The two halves replace the old pair together. Writing one key over the old pair used to
+   * leave the other half from the previous pair: a full quota after the public key was written
+   * (or a call with only one key) gave a new public key beside the old private key, hasKeys()
+   * said true, and decryption then failed for no visible reason. Now a failed save leaves no
+   * keys at all, and a missing half is cleared rather than kept. */
   function saveKeys(mode, publicKeyPem, privateKeyPem) {
     const prefix = mode === 'webcrypto' ? PREFIX_WC : PREFIX_RSA;
-    return attempt((s) => {
+    const saved = attempt((s) => {
+      s.removeItem(prefix + 'pub');
+      s.removeItem(prefix + 'priv');
       if (publicKeyPem) s.setItem(prefix + 'pub', publicKeyPem);
       if (privateKeyPem) s.setItem(prefix + 'priv', privateKeyPem);
       return true;
     }, false);
+    if (!saved) clearKeys(mode);
+    return saved;
   }
 
   function getKeys(mode) {
